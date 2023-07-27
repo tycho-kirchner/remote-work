@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/remote_commons.sh" || exit
+
+arr_contains(){
+    local match="$1"
+    local e
+    shift
+    for e in "$@"; do
+        [ "$e" == "$match" ] && return 0
+    done
+    return 1
+}
+
+# Delete all occurences in arr. Warning: very inefficient.
+del_from_arr(){
+    declare -n __del_arr="$1"
+    local element="$2" new_arr=()
+    # avoid index gaps by rebuilding the whole array
+    # s. https://stackoverflow.com/a/16861932/7015849
+    for el in "${__del_arr[@]}"; do
+        [[ "$el" != "$element" ]] && new_arr+=("$el")
+    done
+    __del_arr=("${new_arr[@]}")
+    return 0
+}
+
+# TODO: delete this
+# # Load x11 display from file or assign a new new one for the given hostnames.
+# # We remember the display numbers to allow for long running remote screen
+# # sessions without the need to update the DISPLAY variable
+# select_x11_display(){
+#     local lockfile FD host_name display
+#     local max_display=19
+#
+#     lockfile="$(dirname "$(mktemp -u)")/konsole-remote-$USER-lock"
+#     exec {FD}<>"$lockfile"
+#     flock $FD || exit 1
+#
+#     if test -f "$cfg_dir/display-ports"; then
+#         while read -r line; do
+#             host_name="${line%:*}"
+#             display="${line##*:}"
+#             if arr_contains "$host_name" "${hostnames[@]}"; then
+#                 export KONSOLE_REMOTE_DISPLAY="$display"
+#                 break
+#             fi
+#             [[ $display -gt $max_display ]] && max_display=$display
+#         done < "$cfg_dir/display-ports"
+#     fi
+#
+#     if [ -z "${KONSOLE_REMOTE_DISPLAY+x}" ]; then
+#         export KONSOLE_REMOTE_DISPLAY=$((max_display + 1))
+#         for host_name in "${hostnames[@]}"; do
+#             echo "$host_name:$KONSOLE_REMOTE_DISPLAY"
+#         done >> "$cfg_dir/display-ports"
+#     fi
+#     rm "$lockfile" 2>/dev/null || :
+#     exec {FD}<&- # close
+# }
+
+
+# ssh Xforwarding and »screen« do not interplay well by default: after connection breakages
+# DISPLAY may change. Further, we may end up with different DISPLAY's
+# per screen session, even when using ssh-multiplexing, when running
+# out of allowed mux-sessions (server-controlled). Therefore, instead of
+# doing »ssh -X ...« in every remote shell-session, we only do it here,
+# writing $DISPLAY to a temporary file which all screen-sessions read before
+# executing a command. See also screen_sessions.sh::_remote_screen_session_init.
+run_x11_forwarding(){
+    local last_failed_hostname=""
+    local ret=0
+
+    while true; do
+        # in case of multiple hostnames push the last failed one to the back
+        if [ -n "$last_failed_hostname" ]; then
+            del_from_arr hostnames "$last_failed_hostname"
+            hostnames=("${hostnames[@]}" "$last_failed_hostname")
+        fi
+
+        for hostname in "${hostnames[@]}"; do
+            # ControlPath=none as active multiplexing may prevent X11 port forwarding.
+            ret=0
+            ssh -o ControlPath=none -X "$hostname" \
+              'echo "$DISPLAY">"${TMPDIR:-/tmp}/remote-screen-display-$USER"; exec cat >/dev/null' || ret=$?
+            if [ $ret -eq 0 ]; then
+                # most likely, user closed terminal and we got EOF.
+                exit 0
+            fi
+            pr_info "ssh X11 forwarding failed with $ret..."
+            sleep 1
+
+            last_failed_hostname="$hostname"
+            _remote_wait_for_connection "$hostname"
+        done
+    done
+}
+
+args=("$@")
+POSITIONAL_ARGS=()
+konsole_args=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    --*|-*)
+        konsole_args+=("$1")
+        shift
+        ;;
+    *)
+        POSITIONAL_ARGS+=("$1") # save positional arg
+        shift
+        ;;
+    esac
+done
+
+if [[ ${#POSITIONAL_ARGS[@]} -ne 1 ]]; then
+    echo "Usage: »$(basename "$0") ssh_alias«"
+    exit 1
+fi
+
+export _REMOTE_KONSOLE_HOST="${POSITIONAL_ARGS[0]}"
+
+cfg_dir="$HOME/.config/konsole-remote-shell"
+mkdir -p "$cfg_dir" || exit
+
+IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
+
+# select_x11_display || exit
+{ __async__
+    konsole --separate "${konsole_args[@]}"
+    ret=$?
+    ## due to existing trap having called exit,
+    ## we usually only get here, when konsole is closed.
+    ## So kill the process group in that case
+    # env kill -TERM -- $konsole_pid
+    kill_pgid
+    exit $ret
+} &
+
+# For now, this has to run in foreground, so we provide the our tty stdin
+# to ssh. That way, we also cleanly exit, when closing the parent terminal.
+run_x11_forwarding
+
+
+# trap ':' INT
+# until wait; do :; done
+
+
+
+

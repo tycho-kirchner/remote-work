@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+set -o nounset
+
+ssh_alias="$1"
+
+p="$(realpath "${BASH_SOURCE[0]}")"
+p="${p%/*}"
+cd "${p%/*}/remote" || exit
+
+# Safe tmp usage
+trap ':' INT
+tmpdir="$(mktemp -d)"
+if [[ $? -ne 0 || ! "$tmpdir" || ! -d "$tmpdir" ]]; then
+    echo "Failed to create tmpdir" >&2
+    exit 1
+fi
+trap 'rm -rf "$tmpdir"' EXIT
+trap - INT
+
+cat exec_producer.sh screen_sessions.sh > "${tmpdir}/SOURCE_ME.bash" || exit
+# The file may be sourced AND executed, so make executable:
+chmod +x "${tmpdir}/SOURCE_ME.bash"
+
+rsync -a "${tmpdir}/" "${ssh_alias}:.remote-work/"
+

@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+l="$(realpath "${BASH_SOURCE[0]}")"; l="${l%/*}"; l="${l%/*}/lib"
+source "$l/remote_commons.sh" || exit
+
+sftp_host_connected(){
+    gio info  "sftp://$ssh_alias" &>/dev/null
+}
+
+sftp_do_connect(){
+    gio mount  "sftp://$ssh_alias"
+}
+
+launch_gvfs_sftp(){
+    local found got_term magic_suspend_file
+    got_term=false
+    sftp_do_connect
+    trap 'got_term=true;' TERM INT
+    while true; do
+        sleep 20
+        [[ $got_term == true ]] && break
+        if ! sftp_host_connected; then
+            pr_info "disconnected! sftp-reconnecting to $ssh_alias in 10 seconds..."
+            sleep 10
+            [[ $got_term == true ]] && break
+            sftp_do_connect
+        fi
+    done
+    # avoid gio getting killed from our exit trap
+    trap '' SIGINT SIGTERM
+    sftp_host_connected && { gio mount -u "sftp://$ssh_alias"; }
+    exit 0
+}
+
+launch_sshfs(){
+    mkdir -p "$mount_path" || exit 1
+    remote-sshfs "$ssh_alias" "$mount_path"
+}
+
+launch_rclone(){
+    # mount --sftp-port 22
+    mkdir -p "$mount_path" ||  exit 1
+    trap 'trap "" TERM INT; fusermount -u "$mount_path"; exit' TERM INT
+    rclone  mount --vfs-cache-mode writes  "$ssh_alias:/" "$mount_path"
+}
+
+
+find_custom_mountpath(){
+    local mount_path_found mount_path
+
+    mount_path_found=false
+    for mount_path in /run/user/$UID /var/run/user/$UID /run/shm \
+                      /dev/shm "${TMPDIR:-/tmp}"; do
+        if [ -w  "$mount_path" ]; then
+            mount_path+="/net-$USER/$ssh_alias"
+            pr_info "using mount-dir $mount_path"
+            __ret="$mount_path"
+            return 0
+        fi
+    done
+    pr_err "Failed to find suitable mount path"
+    return 1
+}
+
+# gvfs/sshfs/rclone
+backend=sshfs
+
+ssh_alias="$1"
+
+case $backend in
+gvfs)
+    mount_path="sftp://"
+    launch_gvfs_sftp &
+;;
+sshfs)
+    find_custom_mountpath || exit
+    mount_path="$__ret"
+    __async__ launch_sshfs
+    ;;
+rclone)
+    find_custom_mountpath || exit
+    mount_path="$__ret"
+    __async__ launch_rclone
+    ;;
+
+esac
+
+
+
+__async__ "$l/remote-exec-consumer.sh" "$ssh_alias" "$mount_path"
+# Don't launch konsole-remote async, until we fixed 'ssh -NTR..' not working
+# in that case
+# konsole-remote "$ssh_alias"
+until wait; do :; done
+
+
