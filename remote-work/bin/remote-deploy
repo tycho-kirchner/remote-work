@@ -24,3 +24,10 @@ chmod +x "${tmpdir}/SOURCE_ME.bash"
 
 rsync -a "${tmpdir}/" "${ssh_alias}:.remote-work/"
 
+# initially create screenrc if not exist
+ssh "$ssh_alias" 'test -f ~/.screenrc || echo "scrollback 30000
+defscrollback 30000
+startup_message off
+escape ^Bb
+termcapinfo xterm* ti@:te@
+altscreen on" > ~/.screenrc'
