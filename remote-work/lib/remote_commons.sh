@@ -232,12 +232,12 @@ scriptdir="$(dirname "$scriptpath")"
 ##     return $ret
 ## }
 
-# Use an exclusive lock, so we have only one process checking if ssh works again.
-# By releasing the lock, we wake up all others.
+# Use an exclusive lock, so we have only one process per ssh-alias checking
+# if the connection works again. By releasing the lock, we wake up all others.
 _remote_wait_for_connection(){
     local ssh_alias="$1"
     local f FD
-    f="${TMPDIR:-/tmp}/_remote-checknetwork-$USER"
+    f="${TMPDIR:-/tmp}/_remote-checknetwork-$USER-$ssh_alias"
     exec {FD}<>"$f"
     flock -x $FD
     while true; do
@@ -246,12 +246,6 @@ _remote_wait_for_connection(){
             return 0
         fi
         sleep 10
-
-
-        # if _remote_check_connection "$ssh_alias"; then
-        #     return 0
-        # fi
-        # sleep 10
     done
 }
 
