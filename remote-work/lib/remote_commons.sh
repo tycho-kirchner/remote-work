@@ -198,10 +198,15 @@ kill_pgid(){
 }
 
 bash_commons_enable_builtins(){
-    [ -z "${BASH_LOADABLES_PATH+x}" ] &&
-        BASH_LOADABLES_PATH=$(pkg-config bash --variable=loadablesdir 2>/dev/null)
-    enable -f sleep sleep
-    enable -f mkdir mkdir
+    if [ -z "${BASH_LOADABLES_PATH+x}" ]; then
+        BASH_LOADABLES_PATH=$(pkg-config bash --variable=loadablesdir)
+        [ -n "$BASH_LOADABLES_PATH" ] || {
+            pr_err "failed to enable bash builtins"
+            return 1
+        }
+    fi
+    enable -f sleep sleep &&
+    enable -f mkdir mkdir &&
     enable -f rmdir rmdir
 }
 
@@ -256,6 +261,6 @@ _remote_path_prepend() {
 }
 
 
-bash_commons_enable_builtins
+bash_commons_enable_builtins &>/dev/null || true
 
 
