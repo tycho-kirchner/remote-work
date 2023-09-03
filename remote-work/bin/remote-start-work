@@ -91,6 +91,4 @@ __async__ "$l/remote-exec-consumer.sh" "$ssh_alias" "$mount_path"
 # Don't launch konsole-remote async, until we fixed 'ssh -NTR..' not working
 # in that case
 # konsole-remote "$ssh_alias"
-until wait; do :; done
-
-
+until wait; do :; done; exit

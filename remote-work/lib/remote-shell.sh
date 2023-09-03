@@ -43,53 +43,55 @@ reserve_session(){
     return 0
 }
 
+main(){
+    IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
 
-IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
+    tmpdir="$(dirname $(mktemp -u))/remote-konsole-shell-$USER-${hostnames[0]}"
+    mkdir -p "$tmpdir" || return
+    add_to_exit 'cleanup'
 
+    remote_screen_session_nb=-1
+    for((i=0; i<3; i++)); do
+        reserve_session remote_screen_session_nb && break
+        pr_warn "Failed to reserve session number - trying again..."
+        sleep 0.5
+    done
 
-tmpdir="$(dirname $(mktemp -u))/remote-konsole-shell-$USER-${hostnames[0]}"
-mkdir -p "$tmpdir" || return
-add_to_exit 'cleanup'
-
-
-remote_screen_session_nb=-1
-for((i=0; i<3; i++)); do
-    reserve_session remote_screen_session_nb && break
-    pr_warn "Failed to reserve session number - trying again..."
-    sleep 0.5
-done
-
-if [ $remote_screen_session_nb -eq -1 ]; then
-    pr_err "giving up..."
-    sleep 10
-    return 1
-fi
-
-
-# set terminal title
-echo -ne "\033]30;s$remote_screen_session_nb\007"
-
-while true; do
-    # in case of multiple hostnames push the last failed one to the back
-    if test -f "$tmpdir/last_failed_hostname"; then
-        read -r last_failed_hostname < "$tmpdir/last_failed_hostname"
-        if [ -n "$last_failed_hostname" ]; then
-            del_from_arr hostnames "$last_failed_hostname"
-            hostnames=("${hostnames[@]}" "$last_failed_hostname")
-        fi
+    if [ $remote_screen_session_nb -eq -1 ]; then
+        pr_err "giving up..."
+        sleep 10
+        return 1
     fi
 
-    for hostname in "${hostnames[@]}"; do
-        # Connect without X11 forwarding here. See »remote-konsole« for the rationale.
-        if ssh -x -t "$hostname" "_remote_screen $remote_screen_session_nb"; then
-            # On tab closing the terminal sends EOF, making ssh exit with zero.
-            # At least konsole v20.12.3 then waits for 1 second, before it sends
-            # a SIGHUP (s. src/Session.cpp, after that it prints »shell did not close,
-            # sending SIGHUP«), so we exit fast.
-            exit 0
+
+    # set terminal title
+    echo -ne "\033]30;s$remote_screen_session_nb\007"
+
+    while true; do
+        # in case of multiple hostnames push the last failed one to the back
+        if test -f "$tmpdir/last_failed_hostname"; then
+            read -r last_failed_hostname < "$tmpdir/last_failed_hostname"
+            if [ -n "$last_failed_hostname" ]; then
+                del_from_arr hostnames "$last_failed_hostname"
+                hostnames=("${hostnames[@]}" "$last_failed_hostname")
+            fi
         fi
-        echo "$hostname" > "$tmpdir/last_failed_hostname"
-        sleep 1
-        _remote_wait_for_connection "$hostname"
+
+        for hostname in "${hostnames[@]}"; do
+            # Connect without X11 forwarding here. See »remote-konsole« for the rationale.
+            if ssh -x -t "$hostname" "_remote_screen $remote_screen_session_nb"; then
+                # On tab closing the terminal sends EOF, making ssh exit with zero.
+                # At least konsole v20.12.3 then waits for 1 second, before it sends
+                # a SIGHUP (s. src/Session.cpp, after that it prints »shell did not close,
+                # sending SIGHUP«), so we exit fast.
+                exit 0
+            fi
+            echo "$hostname" > "$tmpdir/last_failed_hostname"
+            sleep 1
+            _remote_wait_for_connection "$hostname"
+        done
     done
-done
+
+}
+
+main "$@"; exit # exit in same line!

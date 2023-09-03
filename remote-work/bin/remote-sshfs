@@ -58,65 +58,68 @@ cleanup_trap(){
     exit
 }
 
-
-args=("$@")
-positional_args=()
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help)
-      print_usage
-      exit
-      ;;
-    --*|-*)
-      shift
-      ;;
-    *)
-      positional_args+=("$1")
-      shift
-      ;;
-  esac
-done
-
-
-if [ ${#positional_args[@]} -lt 2 ]; then
-    pr_err "invalid format: at least two positional arguments required"
-    print_usage
-    exit 1
-fi
-
-[ -z "${BASH_LOADABLES_PATH+x}" ] &&
-        BASH_LOADABLES_PATH=$(pkg-config bash --variable=loadablesdir 2>/dev/null)
-enable -f sleep sleep
-
-# allow multiple ssh aliases, separated by @: bcl100@bcl100home
-IFS='@' read -r -a hostnames <<< "${args[-2]}"
-mountpoint="${args[-1]}"
-
-[[ "$mountpoint" == */ ]] && mountpoint="${mountpoint::-1}" # pop trailing /
-
-if [[ "$mountpoint" == "$HOME/"* ]]; then
-    pr_warn "warning - mounting below \$HOME may result in poor performance" \
-           "as this path may be monitored by gvfs-udisks2-volume-monitor."
-fi
-
-unmount_if_exists || exit
-
-if ! test -e "$mountpoint"; then
-    mkdir -p "$mountpoint" || exit
-elif [ -n "$(ls -A "$mountpoint")" ]; then
-    pr_err "mountpoint $mountpoint is not empty"
-    exit 1
-fi
-
-trap 'cleanup_trap' INT TERM
-
-
-while true; do
-    for hostname in "${hostnames[@]}"; do
-        # try only one host at a time...
-        args[-2]="$hostname"
-        do_connect "${args[@]}"
-        sleep 1
+main(){
+    args=("$@")
+    positional_args=()
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        -h|--help)
+          print_usage
+          exit
+          ;;
+        --*|-*)
+          shift
+          ;;
+        *)
+          positional_args+=("$1")
+          shift
+          ;;
+      esac
     done
-    sleep 2
-done
+
+
+    if [ ${#positional_args[@]} -lt 2 ]; then
+        pr_err "invalid format: at least two positional arguments required"
+        print_usage
+        exit 1
+    fi
+
+    [ -z "${BASH_LOADABLES_PATH+x}" ] &&
+            BASH_LOADABLES_PATH=$(pkg-config bash --variable=loadablesdir 2>/dev/null)
+    enable -f sleep sleep
+
+    # allow multiple ssh aliases, separated by @: bcl100@bcl100home
+    IFS='@' read -r -a hostnames <<< "${args[-2]}"
+    mountpoint="${args[-1]}"
+
+    [[ "$mountpoint" == */ ]] && mountpoint="${mountpoint::-1}" # pop trailing /
+
+    if [[ "$mountpoint" == "$HOME/"* ]]; then
+        pr_warn "warning - mounting below \$HOME may result in poor performance" \
+               "as this path may be monitored by gvfs-udisks2-volume-monitor."
+    fi
+
+    unmount_if_exists || exit
+
+    if ! test -e "$mountpoint"; then
+        mkdir -p "$mountpoint" || exit
+    elif [ -n "$(ls -A "$mountpoint")" ]; then
+        pr_err "mountpoint $mountpoint is not empty"
+        exit 1
+    fi
+
+    trap 'cleanup_trap' INT TERM
+
+
+    while true; do
+        for hostname in "${hostnames[@]}"; do
+            # try only one host at a time...
+            args[-2]="$hostname"
+            do_connect "${args[@]}"
+            sleep 1
+        done
+        sleep 2
+    done
+}
+
+main "$@"; exit # exit in same line!
