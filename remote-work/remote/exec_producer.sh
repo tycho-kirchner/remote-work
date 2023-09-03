@@ -32,14 +32,17 @@ REMOTE_EXEC_PRODUCER_OPEN(){
     fi
 
     for a in "$@"; do
-        # base-64 encode to ensure correct word splitting
-        file="$(realpath --no-symlinks "$a")"
-
-        if ! test -e "$file"; then
-            echo "REMOTE_EXEC: not exist: $file" >&2
-            return 1
+        if [[ "$a" != -* ]]; then
+            # resolve file path of non-flag
+            file="$(realpath --no-symlinks "$a")"
+            if ! test -e "$file"; then
+                echo "REMOTE_EXEC: not exist: $a" >&2
+                return 1
+            fi
+            a="$file"
         fi
-        args+=( $(echo "$file" | base64 -w 0) )
+        # base-64 encode to ensure correct word splitting
+        args+=( $(echo "$a" | base64 -w 0) )
     done
 
     filesize=$(stat -c%s "$_remote_exec_producer_event_path") || return 1
