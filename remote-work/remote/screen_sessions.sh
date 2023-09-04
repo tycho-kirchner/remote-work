@@ -60,17 +60,17 @@ _remote_screen(){
     _REMOTE_SCREEN_NAME="$screen_name" SCREENDIR="$screen_dir" exec "${args[@]}"
 }
 
-# During a remote_screen_session we are sourced twice: the first time,
-# when bashrc is sourced during ssh login and a second time, when our
-# bashrc is sourced within the screen we created above. In the first case,
-# _REMOTE_SCREEN_NAME is not set, in the second it is.
-if [ -z "${_REMOTE_SCREEN_NAME+x}" ]; then
-    return 0
-fi
-
 ########################################################################
 #                       IN REMOTE SCREEN SESSION                       #
 ########################################################################
+
+# During a remote_screen_session we are sourced twice: the first time,
+# when bashrc is sourced during ssh login and a second time, when our
+# bashrc is sourced within the screen we created above. In the first case,
+# _REMOTE_SCREEN_NAME is not set, in the second it is. Note that we may
+# also be executed by the exec_producer (merged script) so do not call
+# return here (or check wheter to call »return« or »exit«
+if [ -n "${_REMOTE_SCREEN_NAME+x}" ]; then
 
 # allow the user calling »cdscreen 1« to enter the working dir of another session
 cdscreen(){
@@ -230,5 +230,6 @@ fi
 
 _remote_screen_session_init
 
+fi # [ -n "${_REMOTE_SCREEN_NAME+x}" ]
 
 
