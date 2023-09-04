@@ -96,25 +96,49 @@ run_x11_forwarding(){
     done
 }
 
-args=("$@")
+print_usage(){
+    echo "Usage: $(basename "$0") ssh_alias -t YOUR_TERMINAL [terminal_arguments]" >&2
+}
+
 POSITIONAL_ARGS=()
-konsole_args=()
+# Default to kde konsole, as it allows to highlight multiple search matches.
+terminal_args=(konsole --separate)
+terminal_parsed=false
 while [[ $# -gt 0 ]]; do
-    case $1 in
-    --*|-*)
-        konsole_args+=("$1")
+    if [[ $terminal_parsed == true ]]; then
+        # consider all remaining args as beloning to the terminal
+        terminal_args+=("$1")
         shift
-        ;;
+        continue
+    fi
+    case $1 in
+    --terminal|-t)
+        terminal_args=()
+        terminal_parsed=true
+        shift;;
+    --help|-h)
+        print_usage
+        exit;;
     *)
         POSITIONAL_ARGS+=("$1") # save positional arg
-        shift
-        ;;
+        shift;;
     esac
 done
 
 if [[ ${#POSITIONAL_ARGS[@]} -ne 1 ]]; then
-    echo "Usage: »$(basename "$0") ssh_alias«"
+    print_usage
     exit 1
+fi
+
+if [[ ${#terminal_args[@]} -eq 0 ]]; then
+    echo "argument --terminal passed without value."
+    exit 1
+fi
+
+if [[ "${terminal_args[0]}" == gnome-terminal ]] &&
+    ! element_in --wait "${terminal_args[@]}"; then
+    pr_warn "gnome-terminal should be used with --wait, otherwise X11" \
+            "forwarding will not work."
 fi
 
 export _REMOTE_KONSOLE_HOST="${POSITIONAL_ARGS[0]}"
@@ -126,7 +150,11 @@ IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
 
 # select_x11_display || exit
 { __async__
-    konsole --separate "${konsole_args[@]}"
+    # in remote-shell.sh we detect »konsole« by this env-variable. If, for
+    # instance, we called gnome-terminal from konsole, KONSOLE_VERSION would
+    # still be set. So unset here.
+    unset KONSOLE_VERSION
+    "${terminal_args[@]}"
     ret=$?
     ## due to existing trap having called exit,
     ## we usually only get here, when konsole is closed.
@@ -138,12 +166,4 @@ IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
 
 # For now, this has to run in foreground, so we provide the our tty stdin
 # to ssh. That way, we also cleanly exit, when closing the parent terminal.
-run_x11_forwarding
-
-
-# trap ':' INT
-# until wait; do :; done
-
-
-
-
+run_x11_forwarding; exit

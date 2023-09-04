@@ -62,33 +62,37 @@ find_custom_mountpath(){
     return 1
 }
 
-# gvfs/sshfs/rclone
-backend=sshfs
+main(){
+    # gvfs/sshfs/rclone
+    backend=sshfs
+    ssh_alias="$1"
 
-ssh_alias="$1"
-
-case $backend in
-gvfs)
-    mount_path="sftp://"
-    launch_gvfs_sftp &
-;;
-sshfs)
-    find_custom_mountpath || exit
-    mount_path="$__ret"
-    __async__ launch_sshfs
+    case $backend in
+    gvfs)
+        mount_path="sftp://"
+        launch_gvfs_sftp &
     ;;
-rclone)
-    find_custom_mountpath || exit
-    mount_path="$__ret"
-    __async__ launch_rclone
-    ;;
+    sshfs)
+        find_custom_mountpath || exit
+        mount_path="$__ret"
+        __async__ launch_sshfs
+        ;;
+    rclone)
+        find_custom_mountpath || exit
+        mount_path="$__ret"
+        __async__ launch_rclone
+        ;;
+    esac
 
-esac
+    __async__ "$l/remote-exec-consumer.sh" "$ssh_alias" "$mount_path"
 
+    if [[ -z ${2+x} || ( -n ${2+x} && "$2" != --no-konsole ) ]]; then
+        # Don't launch remote-konsole async, until we fixed 'ssh -NTR..' not working
+        # in that case
+        remote-konsole "$@"
+    else
+        until wait; do :; done
+    fi
+}
 
-
-__async__ "$l/remote-exec-consumer.sh" "$ssh_alias" "$mount_path"
-# Don't launch konsole-remote async, until we fixed 'ssh -NTR..' not working
-# in that case
-# konsole-remote "$ssh_alias"
-until wait; do :; done; exit
+main "$@"; exit # exit in same line!

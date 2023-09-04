@@ -64,8 +64,13 @@ main(){
     fi
 
 
-    # set terminal title
-    echo -ne "\033]30;s$remote_screen_session_nb\007"
+    # Set terminal title. Konsole needs special treatment, at least
+    # gnome-, mate-, and xfce4-terminal work with the other escape sequence.
+    if [[ -n ${KONSOLE_VERSION+x} ]]; then
+        echo -ne "\033]30;s$remote_screen_session_nb\007"
+    else
+        echo -ne "\033]0;s$remote_screen_session_nb\007"
+    fi
 
     while true; do
         # in case of multiple hostnames push the last failed one to the back

@@ -170,6 +170,15 @@ pr_info(){
     echo "$(basename ${BASH_SOURCE[1]})::${FUNCNAME[1]} info: $*" >&2
 }
 
+element_in(){
+    local el="$1"
+    shift
+    for cur in "$@"; do
+        [[ "$el" == "$cur" ]] && return 0
+    done
+    return 1
+}
+
 # join_by , a b c #a,b,c
 join_by(){
   local d=${1-} f=${2-}
