@@ -48,7 +48,7 @@ Seamless working via ssh as if running locally.
 
 * Start remote work using the terminal emulator of your choice ( by
   default [konsole](https://github.com/KDE/konsole) is used)
-. Arguments after
+. Arguments after <br>
   `--terminal` are passed as is, gnome-terminal must be launched
   with `--wait`, otherwise X11 forwarding and opening of remote files
   won't work (the script waits for the terminal to close and then cleans up).
@@ -111,10 +111,10 @@ sudo apt install rsync screen
 
 
 
-# Remote execution
+## TODO Remote execution
 TODO: document that paths are resolved for all arguments not starting with dashes...
 
-# Force usage of file path %f instead of URI %u
+## TODO Docuemnt Force usage of file path %f instead of URI %u
 create desktop file launch-uri-as-path.desktop
 ~~~
 [Desktop Entry]
