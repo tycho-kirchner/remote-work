@@ -84,7 +84,7 @@ main(){
 
         for hostname in "${hostnames[@]}"; do
             # Connect without X11 forwarding here. See »remote-konsole« for the rationale.
-            if ssh -x -t "$hostname" "remote_screen $remote_screen_session_nb"; then
+            if ssh -x -t "$hostname" "source ~/.remote-work/SOURCE_ME.bash && remote_screen $remote_screen_session_nb"; then
                 # On tab closing the terminal sends EOF, making ssh exit with zero.
                 # At least konsole v20.12.3 then waits for 1 second, before it sends
                 # a SIGHUP (s. src/Session.cpp, after that it prints »shell did not close,

@@ -4,6 +4,16 @@ set -o nounset
 
 ssh_alias="$1"
 
+add_to_rc=false
+if [[ -n ${2+x} ]]; then
+    if [[ "$2" == --add-to-rc ]]; then
+        add_to_rc=true
+    else
+        echo "$0: unknown argument: $2" >&2
+        exit 1
+    fi
+fi
+
 p="$(realpath "${BASH_SOURCE[0]}")"
 p="${p%/*}"
 cd "${p%/*}/remote" || exit
@@ -24,10 +34,18 @@ chmod +x "${tmpdir}/SOURCE_ME.bash"
 
 rsync -a "${tmpdir}/" "${ssh_alias}:.remote-work/"
 
+if [[ $add_to_rc == true ]]; then
+    add_to_rc_code='fgrep -q "/.remote-work/SOURCE_ME.bash" ~/.bashrc ||
+echo "source ~/.remote-work/SOURCE_ME.bash" >> ~/.bashrc'
+else
+    add_to_rc_code=''
+fi
+
 # initially create screenrc if not exist
 ssh "$ssh_alias" 'test -f ~/.screenrc || echo "scrollback 30000
 defscrollback 30000
 startup_message off
 escape ^Bb
 termcapinfo xterm* ti@:te@
-altscreen on" > ~/.screenrc'
+altscreen on" > ~/.screenrc
+'"$add_to_rc_code"

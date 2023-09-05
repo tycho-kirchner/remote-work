@@ -14,6 +14,23 @@ REMOTE_EXEC_PRODUCER_ADD_APPS(){
     return 0
 }
 
+
+REMOTE_EXEC_PRODUCER_DELETE_APPS(){
+    local app
+    if [ -z "${_remote_exec_setup_done+x}" ]; then
+        _remote_exec_producer_setup || return
+    fi
+    for app in "$@"; do
+        if ! test -e "$_remote_exec_producer_app_path/$app"; then
+            echo "REMOTE_EXEC: no such app: $app" >&2
+        else
+            rm "$_remote_exec_producer_app_path/$app"
+        fi
+    done
+    return 0
+}
+
+
 REMOTE_EXEC_PRODUCER_OPEN(){
     local app="$1"
     local a
