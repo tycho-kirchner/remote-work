@@ -4,7 +4,7 @@ source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/remote_commons.sh" |
 
 
 print_usage(){
-    echo "Usage: $0 remote1@remote2 mountdir"
+    echo "Usage: $0 remote mountdir"
 }
 
 path_prepend() {
