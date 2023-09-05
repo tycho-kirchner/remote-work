@@ -62,10 +62,27 @@ find_custom_mountpath(){
     return 1
 }
 
+cleanup(){
+    if [[ $$ -ne $BASHPID ]]; then
+        return 0
+    fi
+    rmdir "$lockdir"
+}
+
 main(){
     # gvfs/sshfs/rclone
     backend=sshfs
     ssh_alias="$1"
+
+    alias_dir="$tmpdir/remote-work-$USER/$ssh_alias"
+    mkdir -p "$alias_dir" || return
+    lockdir="$alias_dir/remote-start-work-LOCK"
+    if ! mkdir "$lockdir"; then
+        pr_err "remote-start-work seems to be already running  - otherwise remove" \
+               "stale $lockdir"
+        exit 1
+    fi
+    add_to_exit 'cleanup'
 
     case $backend in
     gvfs)

@@ -8,7 +8,7 @@ source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/remote_commons.sh" |
 
 cleanup(){
     local ret=$?
-    rmdir "$tmpdir/$remote_screen_session_nb"
+    rmdir "$alias_dir/$remote_screen_session_nb"
     exit $ret
 }
 
@@ -29,7 +29,7 @@ reserve_session(){
     declare -n reserve_next_ret="$1"
     local min=-1 name
     for((i=1; i < 1025; i++)); do
-        [ ! -d "$tmpdir/$i" ] && {
+        [ ! -d "$alias_dir/$i" ] && {
             min="$i"
             break
         }
@@ -38,7 +38,7 @@ reserve_session(){
         pr_err "too many tabs. Bye."
         return 1
     }
-    mkdir "$tmpdir/$min" || return 1
+    mkdir "$alias_dir/$min" || return 1
     reserve_next_ret="$min"
     return 0
 }
@@ -46,9 +46,8 @@ reserve_session(){
 main(){
     IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
 
-    tmpdir="$(dirname $(mktemp -u))/remote-konsole-shell-$USER-${hostnames[0]}"
-    mkdir -p "$tmpdir" || return
-    add_to_exit 'cleanup'
+    alias_dir="$tmpdir/remote-work-$USER/${hostnames[0]}"
+    mkdir -p "$alias_dir" || return
 
     remote_screen_session_nb=-1
     for((i=0; i<3; i++)); do
@@ -62,7 +61,7 @@ main(){
         sleep 10
         return 1
     fi
-
+    add_to_exit 'cleanup'
 
     # Set terminal title. Konsole needs special treatment, at least
     # gnome-, mate-, and xfce4-terminal work with the other escape sequence.
@@ -74,8 +73,8 @@ main(){
 
     while true; do
         # in case of multiple hostnames push the last failed one to the back
-        if test -f "$tmpdir/last_failed_hostname"; then
-            read -r last_failed_hostname < "$tmpdir/last_failed_hostname"
+        if test -f "$alias_dir/last_failed_hostname"; then
+            read -r last_failed_hostname < "$alias_dir/last_failed_hostname"
             if [ -n "$last_failed_hostname" ]; then
                 del_from_arr hostnames "$last_failed_hostname"
                 hostnames=("${hostnames[@]}" "$last_failed_hostname")
@@ -91,7 +90,7 @@ main(){
                 # sending SIGHUP«), so we exit fast.
                 exit 0
             fi
-            echo "$hostname" > "$tmpdir/last_failed_hostname"
+            echo "$hostname" > "$alias_dir/last_failed_hostname"
             sleep 1
             _remote_wait_for_connection "$hostname"
         done
