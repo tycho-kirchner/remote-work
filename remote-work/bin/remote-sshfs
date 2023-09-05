@@ -51,11 +51,8 @@ do_connect(){
     pr_info "disconnected from ${args[*]}"
 }
 
-cleanup_trap(){
-    # ignore futher
-    trap '' INT TERM
+cleanup(){
     unmount_if_exists
-    exit
 }
 
 main(){
@@ -104,7 +101,7 @@ main(){
         exit 1
     fi
 
-    trap 'cleanup_trap' INT TERM
+    add_to_exit 'cleanup'
 
 
     while true; do
