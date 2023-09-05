@@ -45,13 +45,14 @@ Seamless working via ssh as if running locally.
 
 * Start remote work using konsole, or the terminal of your choice. Arguments after
   `--terminal` are passed as is, gnome-terminal must be launched
-  with `--wait`, otherwise X11 forwarding won't work.
+  with `--wait`, otherwise X11 forwarding and opening of remote files
+  won't work (the script waits for the terminal to close and then cleans up).
   ~~~
   remote-start-work ssh_alias --terminal gnome-terminal --wait
   ~~~
   Now, every new terminal tab immediately ssh-connects and fires up a screen.
 
-* Configure some apps to open remote files locally (via sshfs).
+* Configure some apps to open remote files locally (via *sshfs*).
   Add apps by placing <br>
   `REMOTE_EXEC_PRODUCER_ADD_APPS app1 app2` to the end
   of the **remote** bashrc, e.g.
@@ -60,15 +61,41 @@ Seamless working via ssh as if running locally.
   ~~~
 
 
+## Advanced Usage
+* Nested ssh-sessions: in the case of multiple machines in the LAN of
+  the server, nested ssh-sessions are not uncommon. To jump right to
+  the same working directory when ssh-ing to a machine, where the same
+  home-directory is mounted (e.g. via NFS), place the following function
+  in the remote bashrc:
+  ~~~
+  # execute another remote_screen with the same session name, so we use the
+  # same working directory when ssh'ing to the next host.
+  # Do this, however, only when we no commands are executed (i.e. only one non-dash arg exists).
+  # Note that this only works if arguments are passed as one string, so
+  # use e.g. »-p222« instead of »-p 222«
+  local n_none_dash_args=0 arg
+  for arg in "$@"; do
+      [[ "$arg" != -* ]] && ((++n_none_dash_args))
+  done
+  if [[ -n "${REMOTE_SCREEN_NUMBER+x}" && $n_none_dash_args -eq 1 ]]; then
+      command ssh "$@" -t "remote_screen $REMOTE_SCREEN_NUMBER"
+  else
+      command ssh "$@"
+  fi
+  ~~~
+  Note that X11 forwarding does not work in nested ssh-sessions.
+
+
+
 ## Requirements
 Local:
 ~~~
 sudo apt install rsync sshfs
 ~~~
 
-Remote (screen is usually already installed):
+Remote (typically already installed on a server):
 ~~~
-sudo apt install screen
+sudo apt install rsync screen
 ~~~
 
 
@@ -96,18 +123,7 @@ Into ~/.local/lib/remote-exec/bin/okular
 exec gtk-launch launch-uri-as-path /usr/bin/okular "$@"
 
 
-# TODO: document remote nested screens (ssh to another host in same network):
-~~~
-ssh(){
-    # export screen name, so we use same working directory when ssh'ing to the next host.
-    # Do this, however, only in simple cases, where ssh gets no other arguments.
-    if [[ ${#@} -eq 1 ]]; then
-        command ssh -t "$1" _SCREEN_NAME="$_SCREEN_NAME" bash
-    else
-        command ssh "$@"
-    fi
-}
-~~~
+
 
 # License
 The project is licensed under the GPL, v3 or later

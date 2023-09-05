@@ -9,7 +9,7 @@ _remote_screen_eprint(){
 
 # Resume or create a screen session. If it is still
 # attached, resume fails.
-_remote_screen(){
+remote_screen(){
     local screen_name="screen${1}"
     local screen_path screen_dir
     local ret=0
@@ -212,6 +212,10 @@ _remote_screen_session_init(){
     PS0+="$s"
     [ -z "${PROMPT_COMMAND+x}" ] && PROMPT_COMMAND=''
     PROMPT_COMMAND=$'_remote_screen_prompt\n'"${PROMPT_COMMAND}"
+    # make the session number available as non-private variable to allow
+    # for nested ssh-screen-sessions:
+    REMOTE_SCREEN_NUMBER="${_REMOTE_SCREEN_NAME#screen*}"
+
     _remote_screen_init_done=true
 
     # "$(readlink "$_remote_screen_symlink_dir/$_REMOTE_SCREEN_NAME")"
