@@ -36,7 +36,7 @@ rsync -a "${tmpdir}/" "${ssh_alias}:.remote-work/"
 
 if [[ $add_to_rc == true ]]; then
     add_to_rc_code='fgrep -q "/.remote-work/SOURCE_ME.bash" ~/.bashrc ||
-echo "source ~/.remote-work/SOURCE_ME.bash" >> ~/.bashrc'
+printf "\nsource ~/.remote-work/SOURCE_ME.bash\n" >> ~/.bashrc'
 else
     add_to_rc_code=''
 fi
