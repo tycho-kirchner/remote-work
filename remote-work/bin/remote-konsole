@@ -104,6 +104,10 @@ if [[ "${terminal_args[0]}" == gnome-terminal ]] &&
     ! element_in --wait "${terminal_args[@]}"; then
     pr_warn "gnome-terminal should be used with --wait, otherwise X11" \
             "forwarding will not work."
+elif [[ "${terminal_args[0]}" == tilix ]] &&
+    ! element_in --new-process "${terminal_args[@]}"; then
+    pr_warn "tilix should be used with --new-process, otherwise X11" \
+            "forwarding will not work."
 fi
 
 export _REMOTE_KONSOLE_HOST="${POSITIONAL_ARGS[0]}"

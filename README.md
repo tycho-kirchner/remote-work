@@ -50,6 +50,7 @@ Seamless working via ssh as if running locally.
   `--terminal` are passed as is, gnome-terminal must be launched
   with `--wait`, otherwise X11 forwarding and opening of remote files
   won't work (the script waits for the terminal to close and then cleans up).
+  The same applies to tilix - use `tilix --new-process` here.
   ~~~
   remote-start-work ssh_alias --terminal gnome-terminal --wait
   ~~~
