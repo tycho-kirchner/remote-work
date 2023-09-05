@@ -18,12 +18,14 @@ shopt -s expand_aliases
 # send TERM once we receive SIGINT.
 _bash_commons_pgid="$(($(ps -o pgid= -p $$)))"
 
-# First execute user exit trap (s. below add_to_exit), then
-# kill the whole process group with TERM to eliminate potential
-# leftovers
+# First execute user exit trap (s. below add_to_exit). If we
+# got a SIGINT (Ctrl+C), also kill the whole process group with TERM
+# to eliminate potential leftovers
 _bash_commons_do_exit(){
     local ret=$?
     local usr_ret=0
+    trap '' INT TERM HUP QUIT PIPE
+    trap - EXIT
     if [ -n "$_bash_commons_user_exit_trap" ]; then
         eval "$_bash_commons_user_exit_trap" || usr_ret=$?
         if [ $usr_ret -ne 0 ]; then
@@ -33,12 +35,10 @@ _bash_commons_do_exit(){
         fi
     fi
     # Also kill with TERM after we were interrupted (Ctrl+C).
-    # That way, we also kill background jobs launched like »background-job & «
+    # That way, we also kill background jobs launched like »cmd & «
     if [[ -n ${_bash_commons_gotint+x} ]]; then
-        trap "" TERM
         env kill -TERM -- -$_bash_commons_pgid
     fi
-    trap - EXIT
     exit $ret
 }
 
