@@ -41,7 +41,7 @@ remote_screen(){
     # running screen with -R.
     screen_path="$1"
 
-    args=(command screen)
+    args=(screen)
     if [ -e "$screen_path" ] ; then
         # better remove dead screens beforehand?:
         # screen -wipe >/dev/null || :
