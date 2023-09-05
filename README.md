@@ -24,6 +24,8 @@ Seamless working via ssh as if running locally.
       ControlMaster auto
       ControlPersist 10m
   ~~~
+* copy your public key to the server, e.g., by <br>
+  `ssh-copy-id ssh_alias`. remote-work does not support logins by password!
 * Deploy `remote-work` onto the server (only necessary once):
   ~~~
   remote-deploy ssh_alias --add-to-rc
