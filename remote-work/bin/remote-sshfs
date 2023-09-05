@@ -84,10 +84,6 @@ main(){
         exit 1
     fi
 
-    [ -z "${BASH_LOADABLES_PATH+x}" ] &&
-            BASH_LOADABLES_PATH=$(pkg-config bash --variable=loadablesdir 2>/dev/null)
-    enable -f sleep sleep
-
     # allow multiple ssh aliases, separated by @: bcl100@bcl100home
     IFS='@' read -r -a hostnames <<< "${args[-2]}"
     mountpoint="${args[-1]}"
