@@ -7,9 +7,10 @@
 source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/remote_commons.sh" || return
 
 cleanup(){
-    local ret=$?
-    rmdir "$alias_dir/$remote_screen_session_nb"
-    exit $ret
+    local ret=$? p
+    p="$alias_dir/$remote_screen_session_nb"
+    rm "$p/pgid"
+    rmdir "$p"
 }
 
 # Delete all occurences in arr. Warning: very inefficient.
@@ -27,7 +28,7 @@ del_from_arr(){
 
 reserve_session(){
     declare -n reserve_next_ret="$1"
-    local min=-1 name
+    local min=-1 p
     for((i=1; i < 1025; i++)); do
         [ ! -d "$alias_dir/$i" ] && {
             min="$i"
@@ -38,7 +39,9 @@ reserve_session(){
         pr_err "too many tabs. Bye."
         return 1
     }
-    mkdir "$alias_dir/$min" || return 1
+    p="$alias_dir/$min"
+    mkdir "$p" || return 1
+    echo $_bash_commons_pgid > "$p/pgid"
     reserve_next_ret="$min"
     return 0
 }

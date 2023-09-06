@@ -12,21 +12,32 @@ set +m # default in scripts: no new process group ID's for subprocesses.
 # Further, don't change working dir beforehand.
 shopt -s expand_aliases
 
+# do not expand non-matching globs to the pattern, if it does not exist
+shopt -s nullglob
+
 # Bash sets SIGINT to ignore for async commands, e.g.
 # $ bash -c 'trap -p' & wait  # --> trap -- '' SIGINT
 # As we may sometimes forget to use __async__, also
 # send TERM once we receive SIGINT.
 _bash_commons_pgid="$(($(ps -o pgid= -p $$)))"
 
-# First execute user exit trap (s. below add_to_exit). If we
-# got a SIGINT (Ctrl+C), also kill the whole process group with TERM
-# to eliminate potential leftovers
 _bash_commons_do_exit(){
     local ret=$?
     local usr_ret=0
+    _bash_commons_within_exit=true
     trap '' INT TERM HUP QUIT PIPE
-    trap - EXIT
+
+    # Also kill with TERM after we were interrupted (Ctrl+C).
+    # That way, we also kill background jobs launched like »cmd & «
+    if [[ -n ${_bash_commons_gotint+x} ]]; then
+        env kill -TERM -- -$_bash_commons_pgid
+    fi
+
     if [ -n "$_bash_commons_user_exit_trap" ]; then
+        # Protect us from user code calling »exit«
+        exit(){
+            pr_warn "ignore exit request from user function »${FUNCNAME[1]}«">&2
+        }
         eval "$_bash_commons_user_exit_trap" || usr_ret=$?
         if [ $usr_ret -ne 0 ]; then
             pr_err "Error $usr_ret occurred in user EXIT trap. Previous" \
@@ -34,12 +45,7 @@ _bash_commons_do_exit(){
             ret=$usr_ret
         fi
     fi
-    # Also kill with TERM after we were interrupted (Ctrl+C).
-    # That way, we also kill background jobs launched like »cmd & «
-    if [[ -n ${_bash_commons_gotint+x} ]]; then
-        env kill -TERM -- -$_bash_commons_pgid
-    fi
-    exit $ret
+    builtin exit $ret
 }
 
 # Always use add_to_exit instead of trap '...' EXIT, so we
@@ -51,10 +57,18 @@ add_to_exit(){
 trap '_bash_commons_do_exit' EXIT
 _bash_commons_user_exit_trap=''
 
-# Set INT handler, so we do not continue even if process
-# did not end with signal exit code bits.
-# Test with:   bash -c 'trap "exit 130" INT; sleep 17'
-trap '_bash_commons_gotint=true; trap - INT; kill -INT $BASHPID; exit 130' INT
+bash_commons_set_int_trap(){
+    trap "_bash_commons_gotint=true; $_bash_commons_trap_prefix 130" INT
+}
+
+# Protect the exit trap from signals - cleanup-code must not be interrupted!
+_bash_commons_trap_prefix='trap "" INT TERM HUP QUIT PIPE
+[[ -n ${_bash_commons_within_exit+x} || "${FUNCNAME:-main}" == _bash_commons_do_exit ]] || exit'
+bash_commons_set_int_trap
+trap "$_bash_commons_trap_prefix 143" TERM
+trap "$_bash_commons_trap_prefix 1" HUP
+trap "$_bash_commons_trap_prefix 3" QUIT
+trap "$_bash_commons_trap_prefix 13" PIPE
 
 
 # Allow for asynchronous execution _without_ setting INT trap to ignore.

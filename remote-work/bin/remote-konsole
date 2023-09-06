@@ -61,6 +61,16 @@ run_x11_forwarding(){
     done
 }
 
+cleanup(){
+    local f pgid
+    test -d "$alias_dir" || return 0
+    for f in "$alias_dir"/*/pgid; do
+        read -r pgid < "$f"
+        env kill -TERM -- -$pgid
+    done
+
+}
+
 print_usage(){
     echo "Usage: $(basename "$0") ssh_alias -t YOUR_TERMINAL [terminal_arguments]" >&2
 }
@@ -112,8 +122,10 @@ fi
 
 export _REMOTE_KONSOLE_HOST="${POSITIONAL_ARGS[0]}"
 
-IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
+alias_dir="$tmpdir/remote-work-$USER/$_REMOTE_KONSOLE_HOST"
+add_to_exit 'cleanup'
 
+IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
 # select_x11_display || exit
 { __async__
     # in remote-shell.sh we detect »konsole« by this env-variable. If, for
