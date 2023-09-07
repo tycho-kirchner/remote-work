@@ -62,19 +62,21 @@ run_x11_forwarding(){
 }
 
 cleanup(){
-    local f pgid p to_delete
-    rmdir "$lockdir"
+    local f pgid p to_delete number_re
     test -d "$alias_dir" || return 0
     shopt -s nullglob
     to_delete=()
-    for f in "$alias_dir"/*/pgid; do
-        # At least konsole sends KILL (after HUP), if the shell did not end "fast enough".
-        # So better clean up ourselves.
-        { read -r pgid < "$f" && env kill -TERM -- -$pgid; } &>/dev/null
-        p="${f%/*}"
-        to_delete+=("$p")
+    number_re='^[0-9]+$'
+    # At least konsole sends KILL (after HUP), if the shell did not end "fast enough".
+    # So better clean up ourselves.
+    for d in "$alias_dir"/*; do
+        # our shell lockdirs are named as plain numbers
+        [[ -d "$d" && "${d##*/}" =~ $number_re ]] || continue
+        { read -r pgid < "${d}/pgid" && env kill -TERM -- -$pgid; } &>/dev/null
+        to_delete+=("$d")
     done
     [ ${#to_delete[@]} -gt 0 ] && rm -rf "${to_delete[@]}"
+    rmdir "$lockdir"
     shopt -u nullglob
 }
 
