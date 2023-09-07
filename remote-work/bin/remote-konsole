@@ -132,6 +132,7 @@ fi
 export _REMOTE_KONSOLE_HOST="${POSITIONAL_ARGS[0]}"
 
 alias_dir="$tmpdir/remote-work-$USER/$_REMOTE_KONSOLE_HOST"
+mkdir -p "$alias_dir" || exit
 lockdir="$alias_dir/remote-konsole-LOCK"
 if ! mkdir "$lockdir"; then
     pr_err "remote-konsole seems to be already running  - otherwise remove" \
