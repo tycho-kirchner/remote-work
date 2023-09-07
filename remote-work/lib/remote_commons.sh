@@ -12,9 +12,6 @@ set +m # default in scripts: no new process group ID's for subprocesses.
 # Further, don't change working dir beforehand.
 shopt -s expand_aliases
 
-# do not expand non-matching globs to the pattern, if it does not exist
-shopt -s nullglob
-
 # Bash sets SIGINT to ignore for async commands, e.g.
 # $ bash -c 'trap -p' & wait  # --> trap -- '' SIGINT
 # As we may sometimes forget to use __async__, also

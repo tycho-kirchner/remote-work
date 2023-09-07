@@ -65,6 +65,7 @@ cleanup(){
     local f pgid
     test -d "$alias_dir" || return 0
     for f in "$alias_dir"/*/pgid; do
+        [ -e "$f" ] || continue
         read -r pgid < "$f"
         env kill -TERM -- -$pgid
     done
