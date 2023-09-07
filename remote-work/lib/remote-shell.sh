@@ -9,8 +9,10 @@ source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/remote_commons.sh" |
 cleanup(){
     local ret=$? p
     p="$alias_dir/$remote_screen_session_nb"
-    rm "$p/pgid"
-    rmdir "$p"
+    {
+        rm "$p/pgid"
+        rmdir "$p"
+    } &>/dev/null
 }
 
 # Delete all occurences in arr. Warning: very inefficient.

@@ -62,14 +62,20 @@ run_x11_forwarding(){
 }
 
 cleanup(){
-    local f pgid
+    local f pgid p to_delete
+    rmdir "$lockdir"
     test -d "$alias_dir" || return 0
+    shopt -s nullglob
+    to_delete=()
     for f in "$alias_dir"/*/pgid; do
-        [ -e "$f" ] || continue
-        read -r pgid < "$f"
-        env kill -TERM -- -$pgid
+        # At least konsole sends KILL (after HUP), if the shell did not end "fast enough".
+        # So better clean up ourselves.
+        { read -r pgid < "$f" && env kill -TERM -- -$pgid; } &>/dev/null
+        p="${f%/*}"
+        to_delete+=("$p")
     done
-
+    [ ${#to_delete[@]} -gt 0 ] && rm -rf "${to_delete[@]}"
+    shopt -u nullglob
 }
 
 print_usage(){
@@ -124,6 +130,12 @@ fi
 export _REMOTE_KONSOLE_HOST="${POSITIONAL_ARGS[0]}"
 
 alias_dir="$tmpdir/remote-work-$USER/$_REMOTE_KONSOLE_HOST"
+lockdir="$alias_dir/remote-konsole-LOCK"
+if ! mkdir "$lockdir"; then
+    pr_err "remote-konsole seems to be already running  - otherwise remove" \
+           "stale $lockdir"
+    exit 1
+fi
 add_to_exit 'cleanup'
 
 IFS='@' read -r -a hostnames <<< "$_REMOTE_KONSOLE_HOST"
