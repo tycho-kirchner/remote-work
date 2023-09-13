@@ -26,14 +26,15 @@ main(){
     # allow for local overrides
     path_prepend "$HOME/.local/lib/remote-work/remote-exec-bin"
 
-    while read -r event; do
-        event_ok=true
-        # pr_info got event $event
-        read -r -a word_arr <<< "$event"
+    # Do not »while read -r event...« - read may rarely fail, e.g. with
+    # "read error: 0: Resource temporarily unavailable".
+    while true; do
+        read -r -a word_arr || continue
         if [[ ${#word_arr[@]} -lt 2 ]]; then
-            pr_warn "event has invalid format - ignore..."
+            pr_warn "ignoring event with invalid format: »${word_arr[*]}«"
             continue
         fi
+        event_ok=true
         app="${word_arr[0]}"
         args=()
         for((i=1; i<${#word_arr[@]};i++));do
