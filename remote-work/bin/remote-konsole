@@ -34,7 +34,15 @@ del_from_arr(){
 # executing a command. See also screen_sessions.sh::_remote_screen_session_init.
 run_x11_forwarding(){
     local last_failed_hostname=""
-    local ret=0
+    local ret=0 c
+
+    x11_fifo="$alias_dir/x11-fifo"
+    if [[ -e "$x11_fifo" ]]; then
+        pr_warn "deleting stale fifo $x11_fifo"
+        rm "$x11_fifo"
+    fi
+    mkfifo "$x11_fifo"
+    add_to_exit 'rm "$x11_fifo" &>/dev/null'
 
     while true; do
         # in case of multiple hostnames push the last failed one to the back
@@ -44,10 +52,23 @@ run_x11_forwarding(){
         fi
 
         for hostname in "${hostnames[@]}"; do
-            # ControlPath=none as active multiplexing may prevent X11 port forwarding.
-            ret=0
-            ssh -o ControlPath=none -X "$hostname" \
-              'echo "$DISPLAY">"${TMPDIR:-/tmp}/remote-screen-display-$USER"; exec cat >/dev/null' || ret=$?
+            c="bash -O huponexit -c '"
+            c+='echo "$DISPLAY">"${TMPDIR:-/tmp}/remote-screen-display-$USER";'
+            c+='while :; do sleep 2073600; done;'"'"
+            # See ssh's -n option: ssh needs *something* for stdin (when called with &).
+            # We're not using -n here, because we want ssh in foreground (wait for it).
+            # Instead, we serve it a pipe, whose writing process is ended by us
+            # as soon as ssh finishes.
+            { read -r row < "$x11_fifo"; } | (
+                ret=0
+                # Specify -t -t to enforce tty allocation. Otherwise, sleep does not terminate
+                # on ssh exit. See also https://unix.stackexchange.com/a/210356
+                # ControlPath=none as active multiplexing may prevent X11 port forwarding.
+                ssh -t -t -o ControlPath=none -X "$hostname" "$c" || ret=$?
+                exec {FD}<>"$x11_fifo"; exec {FD}<&- # pipe writer stops, as no fifo writer is left
+                exit $ret
+            )
+            ret=$?
             if [ $ret -eq 0 ]; then
                 # most likely, user closed terminal and we got EOF.
                 exit 0
