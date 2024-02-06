@@ -1,12 +1,13 @@
 
 # Remote-work
 Seamless working via ssh as if running locally.
-* Each terminal tab runs automatically within its own screen so native
-  scrolling and searching works
+* Each new terminal tab connects automatically to the server and runs within its
+  own screen, so native scrolling and searching works
 * Remote files can be opened **from within the ssh session** with your
   local text editor (or any other app)
 * ssh X11-forwarding is stabilized, even during days-lasting screen-sessions
-* Transparent handling of connection-dropouts - all terminal-tabs reconnect automatically
+* Transparent handling of connection-dropouts - all terminal-tabs reconnect
+  automatically
 
 
 ## Usage
@@ -67,6 +68,12 @@ Seamless working via ssh as if running locally.
   ~~~
   REMOTE_EXEC_PRODUCER_DELETE_APPS app1 app2
   ~~~
+* Terminal tabs are named ascending, e.g. `s1`. To quickly enter the remote
+  working directory of the first screen, call `cdscreen 1`.
+* Remote files are usually mounted via sshfs at `/run/user/$UID/net-$USER/ssh_alias`.
+  After launching `remote-start-work`, look for the output `"using mount-dir" ...`.
+  To launch only a terminal (without ssh support), call
+  `remote-konsole ssh_alias` instead.
 
 
 ## Advanced Usage
@@ -108,32 +115,6 @@ Remote (typically already installed on a server):
 ~~~
 sudo apt install rsync screen
 ~~~
-
-
-
-## TODO Remote execution
-TODO: document that paths are resolved for all arguments not starting with dashes...
-
-## TODO Docuemnt Force usage of file path %f instead of URI %u
-create desktop file launch-uri-as-path.desktop
-~~~
-[Desktop Entry]
-# Usage:
-# $ gtk-launch launch-uri-as-path "$(which  echo)" 'sftp://bcl100/home/lakatos/tkirch/bar.pdf'  'sftp://bcl100/home/lakatos/kk'
-# /run/user/1000/gvfs/sftp:host=bcl100/home/lakatos/tkirch/bar.pdf /run/user/1000/gvfs/sftp:host=bcl100/home/lakatos/kk
-Version=1.0
-Name=launch-uri-as-path
-Exec=bash -c '"$@"' _ %F
-# Exec=%F
-Terminal=false
-# X-MultipleArgs=false
-Type=Application
-~~~
-
-Into ~/.local/lib/remote-exec/bin/okular
-exec gtk-launch launch-uri-as-path /usr/bin/okular "$@"
-
-
 
 
 # License
