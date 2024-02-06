@@ -70,6 +70,10 @@ cleanup(){
 }
 
 main(){
+    if [[ "$1" == --version ]]; then
+        remote_print_version
+        exit 0
+    fi
     # gvfs/sshfs/rclone
     backend=sshfs
     ssh_alias="$1"

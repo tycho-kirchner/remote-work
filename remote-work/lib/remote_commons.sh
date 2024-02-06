@@ -238,6 +238,10 @@ scriptdir="$(dirname "$scriptpath")"
 
 ################ END_OF bash_commons.sh  ################
 
+remote_print_version(){
+    echo "remote-work version 0.9"
+}
+
 # Check, if an ssh connection can be established,
 # but don't do that too often. We use a global file
 # whose timestamp is updated, so different scripts use the same check.

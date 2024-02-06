@@ -60,6 +60,10 @@ main(){
     positional_args=()
     while [[ $# -gt 0 ]]; do
       case $1 in
+      --version)
+          remote_print_version
+          exit
+          ;;
         -h|--help)
           print_usage
           exit
