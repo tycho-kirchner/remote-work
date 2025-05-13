@@ -54,6 +54,31 @@ add_to_exit(){
 trap '_bash_commons_do_exit' EXIT
 _bash_commons_user_exit_trap=''
 
+# Execute a command on exit even if this process group is killed.
+# Works by means of a file descriptor, so close sh_commons_exitfds[-1] if a process
+# should not delay exit trap execution:
+# ( exec {sh_commons_exitfds[-1]}<&-; sleep 5)
+[ -z ${sh_commons_exitfds+x} ] && sh_commons_exitfds=()
+add_to_exit_safe(){
+    local lockfile FD
+    lockfile=$(command mktemp) || return
+    exec {FD}<>"$lockfile" || return
+    flock -x $FD || return
+    {
+        exec {FD}<&-
+        set -m
+        {
+            # shellcheck disable=SC2030
+            exec {FD}<>"$lockfile"
+            rm "$lockfile"
+            flock -s $FD
+            eval "$*"
+        } &
+    } &
+    # shellcheck disable=SC2031
+    sh_commons_exitfds+=("$FD")
+}
+
 bash_commons_set_int_trap(){
     trap "_bash_commons_gotint=true; $_bash_commons_trap_prefix 130" INT
 }
