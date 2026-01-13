@@ -108,25 +108,20 @@ print_usage(){
 POSITIONAL_ARGS=()
 # Default to kde konsole, as it allows to highlight multiple search matches.
 terminal_args=(konsole --separate)
-terminal_parsed=false
 while [[ $# -gt 0 ]]; do
-    if [[ $terminal_parsed == true ]]; then
-        # consider all remaining args as beloning to the terminal
-        terminal_args+=("$1")
-        shift
-        continue
-    fi
     case $1 in
     --version)
         remote_print_version
         exit;;
     --terminal|-t)
-        terminal_args=()
-        terminal_parsed=true
-        shift;;
+        # assign all remaining args to the terminal
+        shift
+        terminal_args=("$@")
+        break;;
     --help|-h)
         print_usage
         exit;;
+    -*) pr_err "unsupported arg $1"; exit 1;;
     *)
         POSITIONAL_ARGS+=("$1") # save positional arg
         shift;;
