@@ -70,14 +70,28 @@ cleanup(){
 }
 
 main(){
-    if [[ "$1" == --version ]]; then
-        remote_print_version
-        exit 0
+    ssh_alias=''
+    konsole=true
+    terminal_args=()
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --no-konsole) konsole=false; shift;;
+            --version) remote_print_version; exit;;
+            --terminal|-t)
+                # assign all remaining args to the terminal
+                terminal_args=("$@"); break;;
+            -*) pr_err "unsupported arg $1"; exit 1;;
+            *) ssh_alias=$1; shift;;
+        esac
+    done
+
+    if [ -z "$ssh_alias" ]; then
+        pr_err "missing argument ssh_alias"
+        exit 1
     fi
+
     # gvfs/sshfs/rclone
     backend=sshfs
-    ssh_alias="$1"
-
     alias_dir="$tmpdir/remote-work-$USER/$ssh_alias"
     mkdir -p "$alias_dir" || return
     lockdir="$alias_dir/remote-start-work-LOCK"
@@ -107,13 +121,12 @@ main(){
 
     __async__ "$l/remote-exec-consumer.sh" "$ssh_alias" "$mount_path"
 
-    if [[ -z ${2+x} || ( -n ${2+x} && "$2" != --no-konsole ) ]]; then
+    if [[ $konsole == true ]]; then
         # Don't launch remote-konsole async, until we fixed 'ssh -NTR..' not working
         # in that case
-        remote-konsole "$@"
-    else
-        until wait; do :; done
+        remote-konsole "$ssh_alias" "${terminal_args[@]}"
     fi
+    until wait; do :; done
 }
 
 main "$@"; exit # exit in same line!
