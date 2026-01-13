@@ -34,35 +34,46 @@ main(){
             pr_warn "ignoring event with invalid format: »${word_arr[*]}«"
             continue
         fi
-        event_ok=true
-        app="${word_arr[0]}"
         args=()
-        for((i=1; i<${#word_arr[@]};i++));do
-            arg="$(echo "${word_arr[$i]}" | base64 -d)"
-            # Consider all arguments starting with / remote file paths and resolve
-            # them relative to the current directory
-            # Note that currently stuff like -f/home/user/somefile is not supported.
-            if [[ "$arg" == /* ]]; then
+        event_ok=true
+        for((i=0; i<${#word_arr[@]};i++));do
+            arg="$(echo "${word_arr[$i]}" | base64 -d)" || {
+                pr_err "error base64-decoding »${word_arr[$i]}«"
+                event_ok=false;
+                break;
+            }
+            if [[ "$arg" == ///* ]]; then
+                # We use /// as a special marker for file paths that should be kept "as is", e.g.
+                # for code --remote ssh-remote+alias ///home/user/foo
+                pr_info "arg starts with ///, not prefixing mount-path ${mount_path} for $arg"
+                arg=${arg#//}
+            elif [[ "$arg" == /* ]]; then
+                # Consider all arguments starting with / remote file paths and resolve
+                # them relative to the mount point. First arg is always the remote working dir
+                # Note that currently stuff like -f/home/user/somefile is not supported.
                 if [[ "$mount_path" == 'sftp://'* ]]; then
                     # gvfs mount: resolve from current ssh_alias
                     # arg="/run/user/$UID/gvfs/sftp:host=${ssh_alias}$arg"
                     arg="sftp://${ssh_alias}$arg"
                 else
                     # sshfs mode with explicit mount
-                    arg="${mount_path}$arg"
-                     if [[ ! -e "$arg" ]]; then
-                        pr_warn "file $arg does not exist - ignore..."
-                        event_ok=false
-                        break
+                    if [[ -e "${mount_path}${arg}" ]]; then
+                        arg="${mount_path}${arg}"
+                    else
+                        pr_warn "Using $arg as is, it does not exist at ${mount_path}${arg}"
                     fi
                 fi
 
             fi
             args+=("$arg")
         done
-        [[ $event_ok == true ]] || continue
-        pr_info "executing «$app ${args[*]}»"
-        setsid "$app" "${args[@]}" &
+        [[ $event_ok == true ]] || { pr_err "malformed event, ignore..."; continue; }
+        # first arg is always the remote working dir
+        cwd="${args[0]}"
+        args=("${args[@]:1}")
+
+        pr_info "at $cwd executing »${args[*]}«"
+        { cd "$cwd" && exec setsid "${args[@]}"; } &
         sleep 0.25
     done < <(__async__
         while true; do

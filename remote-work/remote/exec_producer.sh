@@ -32,34 +32,24 @@ REMOTE_EXEC_PRODUCER_DELETE_APPS(){
 
 
 REMOTE_EXEC_PRODUCER_OPEN(){
-    local app="$1"
-    local a
     local file
     local args=()
-    local filesize
-
-    if [ "${#@}" -lt 2 ]; then
-        echo "REMOTE_EXEC: at least two args required but ${#@} given" >&2
-        return 1
-    fi
-    shift
+    local filesize i
 
     if [ -z "${_remote_exec_setup_done+x}" ]; then
         _remote_exec_producer_setup || return
     fi
 
-    for a in "$@"; do
-        if [[ "$a" != -* ]]; then
-            # resolve file path of non-flag
-            file="$(realpath --no-symlinks "$a")"
-            if ! test -e "$file"; then
-                echo "REMOTE_EXEC: not exist: $a" >&2
-                return 1
-            fi
-            a="$file"
-        fi
+    # first arg is always the working directory:
+    args+=( $(echo "$PWD" | base64 -w 0) )
+    for (( i=1; i <= ${#@}; i++ )); do
         # base-64 encode to ensure correct word splitting
-        args+=( $(echo "$a" | base64 -w 0) )
+        args+=( $(printf '%s\n' "${!i}" | base64 -w 0) )
+        # Arguments not starting with a dash are most often file-paths.
+        # Warn, if not exist.
+        if [[ $i -gt 1 && "${!i}" != -* && ! -e "${!i}" ]]; then
+            echo "REMOTE_EXEC warning: not exist: ${!i}" >&2
+        fi
     done
 
     filesize=$(stat -c%s "$_remote_exec_producer_event_path") || return 1
@@ -67,8 +57,7 @@ REMOTE_EXEC_PRODUCER_OPEN(){
         # always rotate first. It's still racy but unlikely when used interactively
         mv "$_remote_exec_producer_event_path" "$_remote_exec_producer_event_path"_old
     fi
-
-    echo "$app ${args[@]}" >> "$_remote_exec_producer_event_path"
+    echo "${args[*]}" >> "$_remote_exec_producer_event_path"
 }
 
 

@@ -103,6 +103,21 @@ Seamless working via ssh as if running locally.
   Note that X11 forwarding does not work in nested ssh-sessions.
 * Use remote-work without launching a terminal by <br>
   `remote-start-work ssh_alias --no-konsole`
+* To avoid resolving absolute paths, e.g. for visual studio code's RemoteSSH,
+  start paths with `///`, e.g. `code --remote ssh-remote+alias ///home/user/foo`.
+  I placed this function into my bashrc:
+  ~~~
+  # Allow opening directories, using code's ssh extension instead of sshfs
+  code(){
+      local d="$1"
+      if ! test -d "$d"; then
+          echo "bashrc: no such dir: $d" >&2
+          return 1
+      fi
+      d=//$(realpath "$d")
+      command code --remote ssh-remote+${ssh_alias} "$d"
+  }
+  ~~~
 
 
 ## Requirements
