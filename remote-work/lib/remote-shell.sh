@@ -67,6 +67,7 @@ main(){
         return 1
     fi
     add_to_exit_safe 'cleanup'
+    trap ':' INT
 
     # Set terminal title. Konsole needs special treatment, at least
     # gnome-, mate-, and xfce4-terminal work with the other escape sequence.
