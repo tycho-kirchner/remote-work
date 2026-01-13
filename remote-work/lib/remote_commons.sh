@@ -295,10 +295,12 @@ _remote_wait_for_connection(){
     exec {FD}<>"$f"
     flock -x $FD
     while true; do
-        if ssh -o ConnectTimeout=10 "$ssh_alias" true &>/dev/null; then
+        if timeout -s INT 13 ssh -o ServerAliveInterval=3 -o ServerAliveCountMax=3 -o ConnectTimeout=10 "$ssh_alias" true &>/dev/null; then
             exec {FD}<&-
             return 0
         fi
+        # ssh failed or we timed out. Multiplexed sessions may hang, so kill them
+        ssh -q -O exit "$ssh_alias" &>/dev/null || :;
         sleep 10
     done
 }
