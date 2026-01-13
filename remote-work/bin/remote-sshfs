@@ -41,7 +41,7 @@ do_connect(){
     unmount_if_exists || return
 
     optstring="ConnectTimeout=5,ConnectionAttempts=1"
-    optstring+=",ServerAliveInterval=5,ServerAliveCountMax=3,follow_symlinks,cache_timeout=20,allow_root"
+    optstring+=",ServerAliveInterval=3,ServerAliveCountMax=3,follow_symlinks,cache_timeout=20,allow_root"
     # optstring="IdentityFile=$HOME/.ssh/id_rsa,ConnectTimeout=5,ConnectionAttempts=1"
     # optstring+=",reconnect,ServerAliveInterval=5,ServerAliveCountMax=3,follow_symlinks,cache_timeout=20,allow_root"
 
